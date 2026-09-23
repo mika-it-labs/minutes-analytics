@@ -1,0 +1,108 @@
+Loaded 30 labeled meeting minutes from RDS.
+TF-IDF matrix: 30 documents x 212 terms
+
+=== UMAP + HDBSCAN Results ===
+ID=7   Cluster 0  Category=AWS/インフラ     UMAP=(13.153, 1.964) Title=EC2構成検討
+ID=8   Cluster 0  Category=AWS/インフラ     UMAP=(12.517, 1.639) Title=VPCネットワーク設計
+ID=9   Cluster 0  Category=AWS/インフラ     UMAP=(12.774, 1.975) Title=RDS構成会議
+ID=10  Cluster 1  Category=AWS/インフラ     UMAP=(12.017, -1.041) Title=クラウド監視会議
+ID=11  Cluster 1  Category=AWS/インフラ     UMAP=(12.931, 0.634) Title=IAM設計会議
+ID=12  Cluster 1  Category=AWS/インフラ     UMAP=(10.963, -0.178) Title=Systems Manager運用
+ID=13  Cluster 1  Category=AWS/インフラ     UMAP=(11.714, 1.541) Title=バックアップ設計
+ID=14  Cluster 0  Category=AWS/インフラ     UMAP=(12.925, 2.432) Title=可用性設計
+ID=15  Cluster 0  Category=AWS/インフラ     UMAP=(13.247, 1.504) Title=クラウドコスト確認
+ID=16  Noise      Category=AWS/インフラ     UMAP=(11.696, -1.164) Title=デプロイ方式検討
+ID=17  Noise      Category=AI/分析        UMAP=(10.162, 0.964) Title=Pythonデータ分析
+ID=18  Cluster 3  Category=AI/分析        UMAP=(8.540, 0.734) Title=TF-IDF分析
+ID=19  Cluster 3  Category=AI/分析        UMAP=(8.332, 0.947) Title=日本語形態素解析
+ID=20  Cluster 3  Category=AI/分析        UMAP=(8.831, 0.462) Title=UMAP分析
+ID=21  Cluster 2  Category=AI/分析        UMAP=(9.631, 1.582) Title=HDBSCAN分析
+ID=22  Cluster 3  Category=AI/分析        UMAP=(8.102, 0.809) Title=特徴量設計
+ID=23  Cluster 2  Category=AI/分析        UMAP=(10.091, 1.808) Title=データ可視化
+ID=24  Cluster 2  Category=AI/分析        UMAP=(9.760, 2.053) Title=クラスタ評価
+ID=25  Cluster 3  Category=AI/分析        UMAP=(8.483, 1.127) Title=NLP処理改善
+ID=26  Cluster 2  Category=AI/分析        UMAP=(9.460, 0.908) Title=分析パイプライン
+ID=27  Cluster 1  Category=セキュリティ       UMAP=(12.348, 0.294) Title=アクセス制御レビュー
+ID=28  Cluster 1  Category=セキュリティ       UMAP=(10.989, 0.392) Title=認証情報管理
+ID=29  Cluster 1  Category=セキュリティ       UMAP=(11.588, 0.615) Title=通信暗号化
+ID=30  Cluster 1  Category=セキュリティ       UMAP=(11.606, -0.195) Title=脆弱性管理
+ID=31  Cluster 1  Category=セキュリティ       UMAP=(13.106, -0.819) Title=ログ監査
+ID=32  Cluster 1  Category=セキュリティ       UMAP=(12.586, 0.129) Title=権限レビュー
+ID=33  Cluster 1  Category=セキュリティ       UMAP=(12.817, -1.037) Title=インシデント対応
+ID=34  Cluster 1  Category=セキュリティ       UMAP=(11.233, 1.132) Title=データ保護
+ID=35  Cluster 1  Category=セキュリティ       UMAP=(12.498, -0.675) Title=セキュリティ監視
+ID=36  Cluster 1  Category=セキュリティ       UMAP=(11.996, -0.186) Title=セキュリティ評価
+
+=== Clustering Evaluation ===
+Adjusted Rand Index (ARI): 0.4493
+Normalized Mutual Information (NMI): 0.6184
+
+=== Category / Cluster Comparison ===
+
+AWS/インフラ
+  Noise: 1
+  Cluster 0: 5
+  Cluster 1: 4
+
+AI/分析
+  Noise: 1
+  Cluster 2: 4
+  Cluster 3: 5
+
+セキュリティ
+  Cluster 1: 10
+
+=== Cluster Important Keywords ===
+
+Cluster 0
+ 1. 為る              0.2549
+ 2. 構成              0.2322
+ 3. サブネット           0.1482
+ 4. AWS             0.1421
+ 5. リソース            0.1215
+ 6. EC              0.1160
+ 7. ストレージ           0.1107
+ 8. 検討              0.1086
+ 9. プライベート          0.1009
+10. rds             0.0985
+
+Cluster 1
+ 1. 為る              0.2662
+ 2. アクセス            0.1081
+ 3. 管理              0.0892
+ 4. 確認              0.0859
+ 5. 権限              0.0813
+ 6. 方法              0.0794
+ 7. つく              0.0748
+ 8. データ             0.0724
+ 9. 利用              0.0677
+10. セキュリティー         0.0644
+
+Cluster 2
+ 1. 為る              0.2684
+ 2. 結果              0.1960
+ 3. クラスタリング         0.1754
+ 4. 分析              0.1389
+ 5. hdbscan         0.1295
+ 6. なし              0.1246
+ 7. 傾向              0.1246
+ 8. 教師              0.1246
+ 9. python          0.1221
+10. よる              0.1090
+
+Cluster 3
+ 1. 為る              0.2548
+ 2. 文章              0.1887
+ 3. IDF             0.1419
+ 4. TF              0.1419
+ 5. 抽出              0.1367
+ 6. 分析              0.1130
+ 7. 特徴量             0.1115
+ 8. 文書              0.1099
+ 9. 改善              0.1057
+10. 精度              0.1057
+Saved: output/umap_clusters.png
+Saved: output/tfidf_heatmap.png
+
+=== Analysis Complete ===
+Check the output directory.
