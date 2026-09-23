@@ -5,3 +5,4 @@ sudachidict_core
 scikit-learn
 umap-learn
 hdbscan
+matplotlib

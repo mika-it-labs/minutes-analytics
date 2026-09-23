@@ -1,16 +1,19 @@
 import os
+from collections import Counter, defaultdict
 
-import psycopg2
-from dotenv import load_dotenv
-from sudachipy import dictionary, tokenizer
-from sklearn.feature_extraction.text import TfidfVectorizer
-import umap
 import hdbscan
+import matplotlib.pyplot as plt
+import psycopg2
+import umap
+from dotenv import load_dotenv
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
+from sudachipy import dictionary, tokenizer
 
 
-# -----------------------------
-# Environment variables
-# -----------------------------
+# =========================================================
+# Configuration
+# =========================================================
 
 load_dotenv()
 
@@ -23,38 +26,36 @@ DB_CONFIG = {
     "sslmode": "require",
 }
 
+OUTPUT_DIR = "output"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# -----------------------------
+
+# =========================================================
 # Japanese tokenizer
-# -----------------------------
+# =========================================================
 
 tokenizer_obj = dictionary.Dictionary().create()
 split_mode = tokenizer.Tokenizer.SplitMode.C
 
 
 def tokenize_japanese(text):
-    """
-    Extract meaningful Japanese words using SudachiPy.
-    """
-
     words = []
 
     for morpheme in tokenizer_obj.tokenize(text, split_mode):
         pos = morpheme.part_of_speech()[0]
 
-        # Keep nouns, verbs and adjectives
         if pos in {"名詞", "動詞", "形容詞"}:
-            normalized = morpheme.normalized_form()
+            word = morpheme.normalized_form()
 
-            if len(normalized) > 1:
-                words.append(normalized)
+            if len(word) > 1:
+                words.append(word)
 
     return words
 
 
-# -----------------------------
-# Get meeting minutes from RDS
-# -----------------------------
+# =========================================================
+# RDS
+# =========================================================
 
 def get_meeting_minutes():
     connection = psycopg2.connect(**DB_CONFIG)
@@ -63,8 +64,9 @@ def get_meeting_minutes():
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT id, meeting_date, title, content
+                SELECT id, meeting_date, title, content, category
                 FROM meeting_minutes
+                WHERE category IS NOT NULL
                 ORDER BY id;
                 """
             )
@@ -75,11 +77,11 @@ def get_meeting_minutes():
         connection.close()
 
 
-# -----------------------------
-# TF-IDF analysis
-# -----------------------------
+# =========================================================
+# TF-IDF
+# =========================================================
 
-def analyze_tfidf(rows):
+def create_tfidf(rows):
     documents = [row[3] for row in rows]
 
     vectorizer = TfidfVectorizer(
@@ -89,79 +91,256 @@ def analyze_tfidf(rows):
     )
 
     matrix = vectorizer.fit_transform(documents)
-    feature_names = vectorizer.get_feature_names_out()
 
-    print("\n=== TF-IDF Keyword Ranking ===")
-
-    for index, row in enumerate(rows):
-        meeting_id = row[0]
-        meeting_date = row[1]
-        title = row[2]
-
-        scores = matrix[index].toarray().flatten()
-
-        ranking = sorted(
-            zip(feature_names, scores),
-            key=lambda item: item[1],
-            reverse=True,
-        )
-
-        ranking = [
-            (word, score)
-            for word, score in ranking
-            if score > 0
-        ][:10]
-
-        print(f"\nID: {meeting_id}")
-        print(f"Date: {meeting_date}")
-        print(f"Title: {title}")
-        print("-" * 50)
-
-        for rank, (word, score) in enumerate(ranking, start=1):
-            print(f"{rank:2}. {word:<15} {score:.4f}")
-
-    return matrix
-
-
-# -----------------------------
-# UMAP + HDBSCAN clustering
-# -----------------------------
-
-def cluster_minutes(rows):
-    documents = [row[3] for row in rows]
-
-    vectorizer = TfidfVectorizer(
-        tokenizer=tokenize_japanese,
-        token_pattern=None,
-        lowercase=False,
+    print(
+        f"TF-IDF matrix: "
+        f"{matrix.shape[0]} documents x "
+        f"{matrix.shape[1]} terms"
     )
 
-    tfidf_matrix = vectorizer.fit_transform(documents)
+    return vectorizer, matrix
 
-    # UMAP
+
+# =========================================================
+# UMAP
+# =========================================================
+
+def run_umap(tfidf_matrix):
     reducer = umap.UMAP(
         n_components=2,
-        n_neighbors=min(3, len(rows) - 1),
+        n_neighbors=5,
         min_dist=0.1,
         metric="cosine",
         random_state=42,
     )
 
-    embedding = reducer.fit_transform(tfidf_matrix)
+    return reducer.fit_transform(tfidf_matrix)
 
-    # HDBSCAN
+
+# =========================================================
+# HDBSCAN
+# =========================================================
+
+def run_hdbscan(embedding):
     clusterer = hdbscan.HDBSCAN(
-        min_cluster_size=2,
+        min_cluster_size=3,
+        min_samples=2,
         metric="euclidean",
     )
 
-    labels = clusterer.fit_predict(embedding)
+    return clusterer.fit_predict(embedding)
 
-    print("\n=== UMAP + HDBSCAN Clustering ===")
 
-    for row, point, label in zip(rows, embedding, labels):
+# =========================================================
+# Evaluation
+# =========================================================
+
+def evaluate_clustering(rows, labels):
+    true_categories = [row[4] for row in rows]
+
+    ari = adjusted_rand_score(true_categories, labels)
+    nmi = normalized_mutual_info_score(
+        true_categories,
+        labels
+    )
+
+    print("\n=== Clustering Evaluation ===")
+    print(f"Adjusted Rand Index (ARI): {ari:.4f}")
+    print(f"Normalized Mutual Information (NMI): {nmi:.4f}")
+
+    print("\n=== Category / Cluster Comparison ===")
+
+    comparison = defaultdict(Counter)
+
+    for category, label in zip(true_categories, labels):
+        comparison[category][label] += 1
+
+    for category, counts in comparison.items():
+        print(f"\n{category}")
+
+        for label, count in sorted(counts.items()):
+            cluster_name = (
+                "Noise"
+                if label == -1
+                else f"Cluster {label}"
+            )
+
+            print(f"  {cluster_name}: {count}")
+
+    return ari, nmi
+
+
+# =========================================================
+# Cluster keywords
+# =========================================================
+
+def show_cluster_keywords(vectorizer, tfidf_matrix, labels):
+    feature_names = vectorizer.get_feature_names_out()
+
+    print("\n=== Cluster Important Keywords ===")
+
+    valid_clusters = sorted(
+        label
+        for label in set(labels)
+        if label != -1
+    )
+
+    for cluster_id in valid_clusters:
+        indices = [
+            index
+            for index, label in enumerate(labels)
+            if label == cluster_id
+        ]
+
+        cluster_matrix = tfidf_matrix[indices]
+
+        mean_scores = (
+            cluster_matrix.mean(axis=0)
+            .A1
+        )
+
+        ranking = sorted(
+            zip(feature_names, mean_scores),
+            key=lambda item: item[1],
+            reverse=True,
+        )[:10]
+
+        print(f"\nCluster {cluster_id}")
+
+        for rank, (word, score) in enumerate(
+            ranking,
+            start=1,
+        ):
+            print(
+                f"{rank:2}. "
+                f"{word:<15} "
+                f"{score:.4f}"
+            )
+
+
+# =========================================================
+# UMAP visualization
+# =========================================================
+
+def save_umap_plot(rows, embedding, labels):
+    plt.figure(figsize=(10, 7))
+
+    scatter = plt.scatter(
+        embedding[:, 0],
+        embedding[:, 1],
+        c=labels,
+        s=80,
+    )
+
+    for row, point in zip(rows, embedding):
+        meeting_id = row[0]
+
+        plt.annotate(
+            str(meeting_id),
+            (point[0], point[1]),
+            fontsize=8,
+        )
+
+    plt.title("Meeting Minutes Clustering: UMAP + HDBSCAN")
+    plt.xlabel("UMAP 1")
+    plt.ylabel("UMAP 2")
+    plt.colorbar(
+        scatter,
+        label="HDBSCAN Cluster"
+    )
+
+    plt.tight_layout()
+
+    path = os.path.join(
+        OUTPUT_DIR,
+        "umap_clusters.png",
+    )
+
+    plt.savefig(path, dpi=150)
+    plt.close()
+
+    print(f"Saved: {path}")
+
+
+# =========================================================
+# TF-IDF heatmap
+# =========================================================
+
+def save_tfidf_heatmap(rows, vectorizer, tfidf_matrix):
+    feature_names = vectorizer.get_feature_names_out()
+
+    mean_scores = tfidf_matrix.mean(axis=0).A1
+
+    top_indices = mean_scores.argsort()[-15:][::-1]
+    top_terms = feature_names[top_indices]
+
+    heatmap_data = (
+        tfidf_matrix[:, top_indices]
+        .toarray()
+    )
+
+    plt.figure(figsize=(12, 9))
+
+    image = plt.imshow(
+        heatmap_data,
+        aspect="auto",
+        interpolation="nearest",
+    )
+
+    plt.colorbar(
+        image,
+        label="TF-IDF Score",
+    )
+
+    plt.xticks(
+        range(len(top_terms)),
+        top_terms,
+        rotation=45,
+        ha="right",
+    )
+
+    meeting_ids = [
+        f"ID {row[0]}"
+        for row in rows
+    ]
+
+    plt.yticks(
+        range(len(meeting_ids)),
+        meeting_ids,
+    )
+
+    plt.title("TF-IDF Heatmap: Top Terms")
+    plt.xlabel("Terms")
+    plt.ylabel("Meeting Minutes")
+
+    plt.tight_layout()
+
+    path = os.path.join(
+        OUTPUT_DIR,
+        "tfidf_heatmap.png",
+    )
+
+    plt.savefig(path, dpi=150)
+    plt.close()
+
+    print(f"Saved: {path}")
+
+
+# =========================================================
+# Results
+# =========================================================
+
+def show_cluster_results(rows, embedding, labels):
+    print("\n=== UMAP + HDBSCAN Results ===")
+
+    for row, point, label in zip(
+        rows,
+        embedding,
+        labels,
+    ):
         meeting_id = row[0]
         title = row[2]
+        category = row[4]
 
         cluster_name = (
             "Noise"
@@ -170,30 +349,66 @@ def cluster_minutes(rows):
         )
 
         print(
-            f"ID={meeting_id:<2} "
-            f"Cluster={cluster_name:<10} "
+            f"ID={meeting_id:<3} "
+            f"{cluster_name:<10} "
+            f"Category={category:<12} "
             f"UMAP=({point[0]:.3f}, {point[1]:.3f}) "
             f"Title={title}"
         )
 
-    return embedding, labels
 
-
-# -----------------------------
+# =========================================================
 # Main
-# -----------------------------
+# =========================================================
 
 def main():
     rows = get_meeting_minutes()
 
-    print(f"Loaded {len(rows)} meeting minutes from RDS.")
+    print(
+        f"Loaded {len(rows)} labeled meeting minutes from RDS."
+    )
 
     if not rows:
-        print("No meeting minutes found.")
+        print("No labeled meeting minutes found.")
         return
 
-    analyze_tfidf(rows)
-    cluster_minutes(rows)
+    vectorizer, tfidf_matrix = create_tfidf(rows)
+
+    embedding = run_umap(tfidf_matrix)
+
+    labels = run_hdbscan(embedding)
+
+    show_cluster_results(
+        rows,
+        embedding,
+        labels,
+    )
+
+    evaluate_clustering(
+        rows,
+        labels,
+    )
+
+    show_cluster_keywords(
+        vectorizer,
+        tfidf_matrix,
+        labels,
+    )
+
+    save_umap_plot(
+        rows,
+        embedding,
+        labels,
+    )
+
+    save_tfidf_heatmap(
+        rows,
+        vectorizer,
+        tfidf_matrix,
+    )
+
+    print("\n=== Analysis Complete ===")
+    print("Check the output directory.")
 
 
 if __name__ == "__main__":
