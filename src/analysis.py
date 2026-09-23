@@ -4,6 +4,8 @@ import psycopg2
 from dotenv import load_dotenv
 from sudachipy import dictionary, tokenizer
 from sklearn.feature_extraction.text import TfidfVectorizer
+import umap
+import hdbscan
 
 
 # -----------------------------
@@ -104,7 +106,6 @@ def analyze_tfidf(rows):
             reverse=True,
         )
 
-        # Remove zero-score terms and keep top 10
         ranking = [
             (word, score)
             for word, score in ranking
@@ -118,6 +119,64 @@ def analyze_tfidf(rows):
 
         for rank, (word, score) in enumerate(ranking, start=1):
             print(f"{rank:2}. {word:<15} {score:.4f}")
+
+    return matrix
+
+
+# -----------------------------
+# UMAP + HDBSCAN clustering
+# -----------------------------
+
+def cluster_minutes(rows):
+    documents = [row[3] for row in rows]
+
+    vectorizer = TfidfVectorizer(
+        tokenizer=tokenize_japanese,
+        token_pattern=None,
+        lowercase=False,
+    )
+
+    tfidf_matrix = vectorizer.fit_transform(documents)
+
+    # UMAP
+    reducer = umap.UMAP(
+        n_components=2,
+        n_neighbors=min(3, len(rows) - 1),
+        min_dist=0.1,
+        metric="cosine",
+        random_state=42,
+    )
+
+    embedding = reducer.fit_transform(tfidf_matrix)
+
+    # HDBSCAN
+    clusterer = hdbscan.HDBSCAN(
+        min_cluster_size=2,
+        metric="euclidean",
+    )
+
+    labels = clusterer.fit_predict(embedding)
+
+    print("\n=== UMAP + HDBSCAN Clustering ===")
+
+    for row, point, label in zip(rows, embedding, labels):
+        meeting_id = row[0]
+        title = row[2]
+
+        cluster_name = (
+            "Noise"
+            if label == -1
+            else f"Cluster {label}"
+        )
+
+        print(
+            f"ID={meeting_id:<2} "
+            f"Cluster={cluster_name:<10} "
+            f"UMAP=({point[0]:.3f}, {point[1]:.3f}) "
+            f"Title={title}"
+        )
+
+    return embedding, labels
 
 
 # -----------------------------
@@ -134,6 +193,7 @@ def main():
         return
 
     analyze_tfidf(rows)
+    cluster_minutes(rows)
 
 
 if __name__ == "__main__":
