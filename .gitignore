@@ -1,0 +1,20 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Environment / secrets
+.env
+*.pem
+*.key
+
+# Data generated locally
+data/*.csv
+data/*.json
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
