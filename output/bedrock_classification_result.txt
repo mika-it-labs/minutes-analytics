@@ -1,0 +1,36 @@
+Loaded: 30 meeting minutes
+ID= 7 | Human=AWS/インフラ | Bedrock=AWS/インフラ | OK
+ID= 8 | Human=AWS/インフラ | Bedrock=セキュリティ | NG
+ID= 9 | Human=AWS/インフラ | Bedrock=セキュリティ | NG
+ID=10 | Human=AWS/インフラ | Bedrock=セキュリティ | NG
+ID=11 | Human=AWS/インフラ | Bedrock=セキュリティ | NG
+ID=12 | Human=AWS/インフラ | Bedrock=セキュリティ | NG
+ID=13 | Human=AWS/インフラ | Bedrock=セキュリティ | NG
+ID=14 | Human=AWS/インフラ | Bedrock=AWS/インフラ | OK
+ID=15 | Human=AWS/インフラ | Bedrock=AWS/インフラ | OK
+ID=16 | Human=AWS/インフラ | Bedrock=AWS/インフラ | OK
+ID=17 | Human=AI/分析 | Bedrock=AI/分析 | OK
+ID=18 | Human=AI/分析 | Bedrock=AI/分析 | OK
+ID=19 | Human=AI/分析 | Bedrock=AI/分析 | OK
+ID=20 | Human=AI/分析 | Bedrock=AI/分析 | OK
+ID=21 | Human=AI/分析 | Bedrock=AI/分析 | OK
+ID=22 | Human=AI/分析 | Bedrock=AI/分析 | OK
+ID=23 | Human=AI/分析 | Bedrock=AI/分析 | OK
+ID=24 | Human=AI/分析 | Bedrock=AI/分析 | OK
+ID=25 | Human=AI/分析 | Bedrock=AI/分析 | OK
+ID=26 | Human=AI/分析 | Bedrock=AI/分析 | OK
+ID=27 | Human=セキュリティ | Bedrock=セキュリティ | OK
+ID=28 | Human=セキュリティ | Bedrock=セキュリティ | OK
+ID=29 | Human=セキュリティ | Bedrock=セキュリティ | OK
+ID=30 | Human=セキュリティ | Bedrock=セキュリティ | OK
+ID=31 | Human=セキュリティ | Bedrock=セキュリティ | OK
+ID=32 | Human=セキュリティ | Bedrock=セキュリティ | OK
+ID=33 | Human=セキュリティ | Bedrock=セキュリティ | OK
+ID=34 | Human=セキュリティ | Bedrock=セキュリティ | OK
+ID=35 | Human=セキュリティ | Bedrock=セキュリティ | OK
+ID=36 | Human=セキュリティ | Bedrock=セキュリティ | OK
+
+=== RESULT ===
+Processed : 30
+Correct   : 24
+Accuracy  : 80.00%

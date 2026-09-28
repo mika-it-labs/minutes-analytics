@@ -250,3 +250,31 @@ python3 src/analysis.py
 - CloudWatchによるEC2監視
 - 分析対象データの拡張
 - 分析処理の自動実行
+
+---
+
+## Amazon Bedrockによる議事録自動分類
+
+教師なしクラスタリングに加えて、Amazon Bedrockを使用した
+LLMベースの日本語議事録分類を実装しました。
+
+### Architecture
+
+```text
+RDS PostgreSQL
+      │
+      │ title + content
+      ▼
+EC2 / Python / boto3
+      │
+      ▼
+Amazon Bedrock
+      │
+      ▼
+APAC Nova Micro
+      │
+      ▼
+ai_category
+      │
+      ▼
+人手ラベル category と比較
