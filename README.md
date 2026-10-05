@@ -319,6 +319,12 @@ Bedrockには人手で設定した正解ラベル `category` を渡していま�
 
 30件すべてが1つのクラスタに所属し、欠落・重複はありませんでした。
 
+### Bedrock Semantic Clustering Visualization
+
+Amazon Bedrock / Nova Microが生成した意味ベースのクラスタリング結果です。
+
+![Amazon Bedrock Semantic Clustering](output/bedrock_clustering_result.png)
+
 ### Evaluation
 
 人手で設定した評価用カテゴリとのグループ構造の一致度をARI/NMIで評価しました。
@@ -341,6 +347,12 @@ Agreement : 30/30 (100.00%)
 |---|---:|---:|
 | TF-IDF + UMAP + HDBSCAN | 0.4493 | 0.6184 |
 | Amazon Bedrock / Nova Micro | **1.0000** | **1.0000** |
+
+### Clustering Evaluation Visualization
+
+従来型の `TF-IDF + UMAP + HDBSCAN` と、Amazon Bedrock / Nova Microによる意味ベースクラスタリングのARI/NMIを比較しました。
+
+![Clustering Evaluation Comparison](output/clustering_comparison.png)
 
 ### 3つの分析アプローチ
 
