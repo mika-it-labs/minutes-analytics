@@ -278,3 +278,87 @@ ai_category
       │
       ▼
 人手ラベル category と比較
+
+---
+
+## Amazon Bedrockによる意味ベースクラスタリング
+
+従来の `TF-IDF + UMAP + HDBSCAN` による教師なしクラスタリングに加えて、Amazon Bedrock / Nova Microを使用した意味ベースのクラスタリングを実装しました。
+
+### 処理フロー
+
+```text
+RDS PostgreSQL
+日本語議事録 30件
+      │
+      ├─────────────────────┐
+      ▼                     ▼
+TF-IDF + UMAP          Amazon Bedrock
+      │                 Nova Micro
+      ▼                     │
+   HDBSCAN                  ▼
+      │              Semantic Clustering
+      └──────────┬──────────┘
+                 ▼
+             ARI / NMI
+```
+
+### Bedrockへの入力
+
+Bedrockには人手で設定した正解ラベル `category` を渡していません。
+
+クラスタリングに使用した情報は各議事録の `title` と `content` のみです。また、事前定義されたカテゴリやクラスタ数も指定せず、文章の意味・テーマ・内容の類似性からグループを生成させました。
+
+### Semantic Clustering Result
+
+| Cluster | Bedrockが生成したクラスタ名 | Documents |
+|---|---|---:|
+| 1 | AWSインフラ設計 | 10 |
+| 2 | 自然言語処理 | 10 |
+| 3 | セキュリティ設計 | 10 |
+
+30件すべてが1つのクラスタに所属し、欠落・重複はありませんでした。
+
+### Evaluation
+
+人手で設定した評価用カテゴリとのグループ構造の一致度をARI/NMIで評価しました。
+
+```text
+Documents : 30
+Clusters  : 3
+ARI       : 1.0000
+NMI       : 1.0000
+Agreement : 30/30 (100.00%)
+```
+
+今回の30件の評価データでは、Bedrockが生成したクラスタ構造と人手によるグループ構造が完全に一致しました。
+
+この結果は今回使用した小規模な評価データに対する結果であり、未知データに対する一般的な精度100%を意味するものではありません。
+
+### HDBSCANとの比較
+
+| Method | ARI | NMI |
+|---|---:|---:|
+| TF-IDF + UMAP + HDBSCAN | 0.4493 | 0.6184 |
+| Amazon Bedrock / Nova Micro | **1.0000** | **1.0000** |
+
+### 3つの分析アプローチ
+
+| Approach | Method | Result |
+|---|---|---|
+| 教師なしクラスタリング | TF-IDF + UMAP + HDBSCAN | ARI 0.4493 / NMI 0.6184 |
+| LLMカテゴリ分類 | Amazon Bedrock / Nova Micro | Accuracy 80.00% |
+| LLM意味ベースクラスタリング | Amazon Bedrock / Nova Micro | ARI 1.0000 / NMI 1.0000 |
+
+従来型の機械学習によるクラスタリング、LLMによるカテゴリ分類、LLMによる意味ベースクラスタリングを同一データセット上で実装・比較しました。
+
+### Bedrock Clustering Files
+
+```text
+src/bedrock_clustering.py
+src/evaluate_bedrock_clustering.py
+
+output/bedrock_clustering_result.json
+output/bedrock_clustering_result.txt
+output/bedrock_clustering_evaluation.txt
+```

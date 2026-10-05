@@ -1,0 +1,6 @@
+=== BEDROCK CLUSTERING EVALUATION ===
+Documents : 30
+Clusters  : 3
+ARI       : 1.0000
+NMI       : 1.0000
+Agreement : 30/30 (100.00%)
