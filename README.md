@@ -1,298 +1,306 @@
-# Meeting Minutes Analytics on AWS
+# AWS議事録分析・生成AI自動分類システム
 
-AWS上に構築したPostgreSQLデータベースから日本語の議事録データを取得し、Pythonで自然言語処理・TF-IDF分析・クラスタリング・可視化を行うクラウドデータ分析ポートフォリオです。
+**AWS × Amazon Bedrock × PostgreSQL × Python × Terraform**
 
-## Overview
+Amazon RDS for PostgreSQLに保存した日本語議事録を、Amazon BedrockのAmazon Nova Microで自動分類し、TF-IDFとUMAPで可視化したクラウド・AIエンジニアリングのポートフォリオです。
 
-このプロジェクトでは、AWS RDS for PostgreSQLに保存された日本語議事録をEC2上のPythonアプリケーションから取得し、以下の分析を実行します。
+## 1. プロジェクト概要
 
-1. RDS PostgreSQLから議事録データを取得
-2. SudachiPyによる日本語形態素解析
-3. TF-IDFによる特徴量生成
-4. UMAPによる2次元への次元削減
-5. HDBSCANによる教師なしクラスタリング
-6. クラスタごとの重要語抽出
-7. 分析結果の可視化
+AWSのインフラ構築からデータベース接続、生成AIによる分類、Pythonでの可視化、精度評価までを実装・検証しました。
 
-## Architecture
+本プロジェクトでは、架空の日本語議事録30件を使用しています。実際の顧客情報や社内の機密議事録は含みません。
+
+### 主な実装内容
+
+- Amazon RDS for PostgreSQLによる議事録データ管理
+- AWS Systems ManagerによるプライベートRDSへの接続
+- Amazon Bedrock（Nova Micro）による議事録の自動分類
+- Pythonとboto3による生成AI API連携
+- 分類結果のPostgreSQLへの保存
+- TF-IDFとUMAPによる日本語議事録の可視化
+- AI分類精度の評価
+- TerraformによるAWSインフラのコード管理
+
+## 2. システム構成
 
 ```text
-Local Windows / VS Code
-        |
-        | Git push
-        v
-      GitHub
-        |
-        | Git pull
-        v
-     AWS EC2
-        |
-        | Python / psycopg2
-        | SSL connection
-        v
-AWS RDS for PostgreSQL
-        |
-        | Meeting minutes
-        v
-    SudachiPy
-        |
-        v
-      TF-IDF
-        |
-        v
-       UMAP
-        |
-        v
-     HDBSCAN
-        |
-        +--> Cluster analysis
-        |
-        +--> TF-IDF heatmap
-        |
-        +--> UMAP visualization
+Windows 11 / Visual Studio Code
+              |
+              | AWS CLI
+              | SSMポートフォワーディング
+              v
+          Amazon EC2
+         （SSM管理対象）
+              |
+              v
+    Amazon RDS PostgreSQL
+       meeting_minutes
+              |
+              | Python / psycopg2
+              v
+       議事録30件を取得
+              |
+              v
+        Amazon Bedrock
+        Amazon Nova Micro
+              |
+              v
+       3カテゴリへ自動分類
+              |
+              v
+     RDSのai_categoryへ保存
+              |
+              v
+       TF-IDF + UMAP
+              |
+              v
+       Matplotlibによる
+       議事録カテゴリマップ
+              |
+              v
+         分類精度を評価
 ```
 
-## AWS Architecture
+開発、Python実行、可視化、GitHubへの公開はWindows 11のVS Codeから実施しました。
 
-- **Amazon EC2**
-  - Python分析処理を実行
+EC2はプライベートRDSへの接続経路として使用し、Pythonの分析処理はローカル環境で実行しています。
 
-- **Amazon RDS for PostgreSQL**
-  - 議事録データを保存
-  - Private Subnetに配置
+## 3. 使用技術
 
-- **Amazon VPC**
-  - Public Subnet: EC2
-  - Private Subnets: RDS
+| 分野 | 使用技術 | 用途 |
+|---|---|---|
+| クラウド | AWS | インフラ基盤 |
+| コンピューティング | Amazon EC2 | SSM接続の中継 |
+| データベース | Amazon RDS for PostgreSQL | 議事録・分類結果の保存 |
+| 生成AI | Amazon Bedrock | AI推論サービス |
+| AIモデル | Amazon Nova Micro | 議事録の自動分類 |
+| セキュリティ | AWS IAM | アクセス権限管理 |
+| 運用 | AWS Systems Manager | プライベート接続 |
+| IaC | Terraform | インフラ構成管理 |
+| プログラミング | Python | データ処理・自動化 |
+| AWS SDK | boto3 | Bedrock API連携 |
+| DB接続 | psycopg2 | PostgreSQL操作 |
+| 日本語処理 | SudachiPy | 形態素解析 |
+| 特徴量抽出 | TF-IDF | 文章のベクトル化 |
+| 次元削減 | UMAP | 文章の2次元配置 |
+| 可視化 | Matplotlib / SciPy | 散布図・密度分布 |
 
-- **Security Groups**
-  - PostgreSQL通信をEC2からRDSへのTCP/5432に制限
+## 4. 議事録の自動分類
 
-- **AWS Systems Manager**
-  - EC2の管理・トラブルシューティングに利用
+### 使用データ
 
-- **IAM Role**
-  - EC2からSystems Managerを利用するための権限を付与
+架空の日本語議事録30件をAmazon RDS for PostgreSQLに保存し、分析対象としました。
 
-## Technologies
+### 分類カテゴリ
 
-| Category | Technology |
+| カテゴリ | 主な内容 |
 |---|---|
-| Cloud | AWS |
-| Compute | Amazon EC2 |
-| Database | Amazon RDS for PostgreSQL |
-| Network | Amazon VPC |
-| Server Management | AWS Systems Manager |
-| Language | Python |
-| Database Client | psycopg2 |
-| Japanese NLP | SudachiPy |
-| Feature Extraction | TF-IDF |
-| Dimensionality Reduction | UMAP |
-| Clustering | HDBSCAN |
-| Machine Learning | scikit-learn |
-| Visualization | Matplotlib |
-| Version Control | Git / GitHub |
+| AWS/インフラ | VPC、EC2、RDS、Terraform、S3、CloudWatch |
+| AI/分析 | LLM、RAG、Python、TF-IDF、UMAP、Embedding |
+| セキュリティ | IAM、KMS、CloudTrail、WAF、GuardDuty |
 
-## Dataset
+### 処理フロー
 
-検証用として30件の日本語議事録をRDS PostgreSQLに登録しました。
+1. RDSから議事録のタイトルと本文を取得
+2. Amazon BedrockのConverse APIでNova Microを呼び出す
+3. 3カテゴリから最適なカテゴリを予測
+4. 予測結果をRDSの `ai_category` カラムへ保存
+5. 事前に設定した正解カテゴリと比較
+6. Accuracy（正解率）を計算
+7. TF-IDFとUMAPで分類結果を可視化
 
-議事録は以下のテーマを含みます。
+正解カテゴリは評価に使用し、AIへの分類プロンプトには含めていません。
 
-- AWS / インフラ
-- AI / データ分析
-- セキュリティ
+## 5. 実行結果
 
-分析処理ではRDSからデータを直接取得します。
+Amazon Nova Microによる議事録30件の分類を実施しました。
 
-## Analysis Pipeline
+### 分類精度
 
-```text
-PostgreSQL
-    |
-    v
-Japanese Meeting Minutes
-    |
-    v
-SudachiPy
-    |
-    v
-Tokenization / Morphological Analysis
-    |
-    v
-TF-IDF
-    |
-    v
-212-dimensional feature space
-    |
-    v
-UMAP
-    |
-    v
-2-dimensional representation
-    |
-    v
-HDBSCAN
-    |
-    v
-Unsupervised clustering
-    |
-    v
-Visualization
+| 評価項目 | 結果 |
+|---|---|
+| 対象データ | 架空の日本語議事録30件 |
+| 使用モデル | Amazon Nova Micro |
+| 分類カテゴリ | 3種類 |
+| 正解件数 | 24件 |
+| 誤分類件数 | 6件 |
+| **Accuracy** | **80.0%** |
+
+### AIの予測カテゴリ別件数
+
+| カテゴリ | 予測件数 |
+|---|---:|
+| AWS/インフラ | 4件 |
+| AI/分析 | 10件 |
+| セキュリティ | 16件 |
+| **合計** | **30件** |
+
+今回の検証では、30件中24件を正しく分類し、6件が誤分類となりました。
+
+予測カテゴリには偏りが見られ、特にセキュリティへの分類が多い結果となりました。
+
+少数の架空データによる検証結果であり、実運用における分類精度を保証するものではありません。
+
+## 6. 議事録カテゴリマップ
+
+TF-IDFとUMAPを使用して、30件の議事録を2次元空間に配置しました。
+
+![Amazon Bedrockによる議事録カテゴリマップ](output/bedrock_classification_map.png)
+
+### マップの読み方
+
+- **点1つ**：議事録1件
+- **点の位置**：TF-IDFとUMAPによる文章の特徴
+- **点の色**：Nova Microが予測したカテゴリ
+- **数字**：議事録ID
+- **赤い外枠**：正解カテゴリとAIの予測が異なる議事録
+
+UMAPは文章の特徴を2次元に可視化するために使用しています。
+
+カテゴリの予測自体はAmazon Nova Microが行っています。
+
+## 7. 実行環境
+
+- OS：Windows 11
+- 開発環境：Visual Studio Code
+- ターミナル：PowerShell
+- 言語：Python
+- AWSリージョン：東京（ap-northeast-1）
+- データベース：Amazon RDS for PostgreSQL
+- 生成AI：Amazon Bedrock / Amazon Nova Micro
+
+## 8. 実行方法
+
+### 8.1 Pythonライブラリのインストール
+
+```powershell
+python -m pip install boto3 psycopg2-binary python-dotenv numpy scipy scikit-learn umap-learn sudachipy sudachidict-core matplotlib
 ```
 
-今回の実行では、30件の議事録から212個のTF-IDF特徴量が生成されました。
+### 8.2 接続設定
 
-## Results
+プロジェクト直下に `.env.local` を作成します。
 
-### UMAP + HDBSCAN
+```dotenv
+DB_HOST=127.0.0.1
+DB_PORT=15432
+DB_NAME=minutesdb
+DB_USER=minutesadmin
+DB_PASSWORD=YOUR_RDS_PASSWORD
+AWS_PROFILE=portfolio-developer
+AWS_REGION=ap-northeast-1
+```
 
-![UMAP clustering result](output/umap_clusters.png)
+認証情報はGitHubに公開しません。
 
-TF-IDFで生成した特徴量をUMAPで2次元化し、HDBSCANによる教師なしクラスタリングを実行しました。
+### 8.3 SSMポートフォワーディング
 
-人手で設定したカテゴリをクラスタリング処理には使用せず、文章中の特徴量をもとに自動的にグループ化しています。
+VS CodeのPowerShellターミナルで、既存のSSM管理対象EC2を経由してプライベートRDSに接続します。
 
-### TF-IDF Heatmap
+```powershell
+aws ssm start-session `
+  --target YOUR_EC2_INSTANCE_ID `
+  --document-name AWS-StartPortForwardingSessionToRemoteHost `
+  --parameters '{"host":["YOUR_RDS_ENDPOINT"],"portNumber":["5432"],"localPortNumber":["15432"]}' `
+  --region ap-northeast-1 `
+  --profile portfolio-developer
+```
 
-![TF-IDF heatmap](output/tfidf_heatmap.png)
+### 8.4 議事録の登録
 
-各議事録における主要語のTF-IDFスコアをヒートマップとして可視化しています。
+```powershell
+python .\src\demo_bedrock_pipeline.py seed
+```
 
-## Evaluation
+### 8.5 Bedrockによる自動分類
 
-参考値として、人手で設定したカテゴリとクラスタリング結果を比較しました。
+```powershell
+python .\src\demo_bedrock_pipeline.py classify
+```
 
-| Metric | Result |
-|---|---:|
-| Adjusted Rand Index (ARI) | 0.4493 |
-| Normalized Mutual Information (NMI) | 0.6184 |
+### 8.6 可視化と精度評価
 
-本プロジェクトの主目的はクラスタリング精度の最適化ではなく、AWS上のデータベースから日本語データを取得し、NLP・機械学習・可視化までを一連の処理として実装することです。
+```powershell
+python .\src\demo_bedrock_pipeline.py visualize
+```
 
-## Security Design
+### 8.7 結果の表示
 
-データベースの認証情報はソースコードへ直接記述していません。
+```powershell
+Start-Process .\output\bedrock_classification_map.png
+Get-Content .\output\demo_classification_evaluation.txt
+```
 
-EC2では環境変数を利用してデータベース接続情報を管理し、`.env` はGitの管理対象外としています。
-
-RDSはPrivate Subnetに配置し、PostgreSQLへのアクセスをEC2からの通信に制限しています。
-
-データベース接続ではSSLを使用しています。
-
-## Repository Structure
+## 9. プロジェクト構成
 
 ```text
 minutes-analytics/
-├── src/
-│   └── analysis.py
-├── output/
-│   ├── analysis_result.txt
-│   ├── tfidf_heatmap.png
-│   └── umap_clusters.png
-├── .env.example
-├── .gitignore
 ├── README.md
-└── requirements.txt
+├── .gitignore
+├── src/
+│   └── demo_bedrock_pipeline.py
+├── output/
+│   ├── bedrock_classification_map.png
+│   └── demo_classification_evaluation.txt
+└── terraform/
+    └── ...
 ```
 
-## Run
+上記は本検証に関連する主要ファイルの構成です。既存のその他のファイルは省略しています。
 
-### 1. Install dependencies
+## 10. セキュリティ設計
 
-```bash
-python3 -m pip install --user -r requirements.txt
-```
+- RDSをプライベートネットワーク内に配置
+- AWS Systems Managerを利用した安全な接続
+- EC2のSSHポートを公開しない構成
+- IAMによるアクセス権限制御
+- データベース認証情報をGit管理から除外
+- 実際の社内議事録を使用せず、架空データで検証
 
-### 2. Configure environment variables
+## 11. このプロジェクトで習得・実践した技術
 
-`.env.example` を参考に `.env` を作成します。
+### AWSインフラ
 
-```text
-DB_HOST=your-rds-endpoint
-DB_PORT=5432
-DB_NAME=minutesdb
-DB_USER=your-db-user
-DB_PASSWORD=your-db-password
-```
+- Amazon EC2とRDSの連携
+- プライベートネットワークへの接続
+- IAM権限設定とトラブルシューティング
+- Systems Managerによるポートフォワーディング
+- TerraformによるIaC
 
-> `.env` はGitの管理対象外です。実際の認証情報をGitHubへ公開しないでください。
+### 生成AI・Python
 
-### 3. Run analysis
+- Amazon BedrockのConverse API呼び出し
+- boto3によるAWSサービス連携
+- 生成AIを利用した日本語テキスト分類
+- PostgreSQLへの予測結果保存
+- TF-IDFによる文章特徴量抽出
+- UMAPによる次元削減
+- Matplotlibによるデータ可視化
+- AIモデルの分類精度評価
 
-```bash
-python3 src/analysis.py
-```
+### 開発・運用
 
-分析結果は `output/` ディレクトリへ保存されます。
+- Windows 11とVS Codeによる開発
+- Python仮想環境の利用
+- AWS CLIによる操作
+- GitとGitHubによるソースコード管理
+- エラーログに基づく問題解決
 
-## What I Learned
+## 12. 今後の改善
 
-このプロジェクトを通じて以下を実践しました。
-
-- AWS VPC / Subnet / Route Table / Internet Gatewayの構築
-- EC2とRDS PostgreSQLの接続
-- Security Groupによるアクセス制御
-- IAM RoleとSystems ManagerによるEC2管理
-- PostgreSQLのデータベース・テーブル操作
-- PythonからRDSへのSSL接続
-- Git / GitHubを利用したソースコード管理
-- SudachiPyによる日本語形態素解析
-- TF-IDFによる文章特徴量生成
-- UMAP / HDBSCANによる教師なし分析
-- Matplotlibによる分析結果の可視化
-- Linux環境でのPythonパッケージ・ビルドトラブルシューティング
-
-## Future Improvements
-
-- AWS Systems Manager Parameter Store / Secrets Managerによる認証情報管理
-- GitHub Actions + AWS IAM OIDCによるCI/CD
-- CloudWatchによるEC2監視
-- 分析対象データの拡張
-- 分析処理の自動実行
+- 誤分類6件の原因分析
+- 分類プロンプトの改善
+- Precision・Recall・F1スコアによる評価
+- 検証データの拡充
+- Pythonコードの自動テスト
+- CI/CDの導入
 
 ---
 
-## Amazon Bedrockによる議事録自動分類
+**プロジェクト種別：** 個人学習・技術検証ポートフォリオ
 
-Amazon Bedrock / Amazon Nova Microで、議事録30件を「AWS/インフラ」「AI/分析」「セキュリティ」の3カテゴリへ分類しました。入力はタイトルと本文で、人手の正解ラベルは評価のみに使用します。
+**AWSリージョン：** 東京（ap-northeast-1）
 
-```text
-RDS PostgreSQL → Python / boto3 → Amazon Bedrock / Nova Micro → 予測カテゴリ
-議事録本文 → SudachiPy → TF-IDF → UMAP → 点の位置
-保存済みNova Micro予測 → 点の色
-```
+**使用データ：** 架空の日本語議事録30件
 
-![議事録カテゴリマップ](output/bedrock_classification_map.png)
-
-| 評価 | 結果 |
-|---|---:|
-| 議事録数 | 30 |
-| 正解数 | 24 / 30 |
-| Accuracy | 80.00% |
-| AWS/インフラへの予測 | 4件 |
-| AI/分析への予測 | 10件 |
-| セキュリティへの予測 | 16件 |
-
-点の位置は既存の `analysis_result.txt` に保存されたTF-IDF＋UMAP座標（小数3桁）、色は `bedrock_classification_result.txt` の実際のAI予測です。議事録IDで30件を照合し、人手ラベルと評価結果の一致を確認して生成します。赤い外枠は誤分類の6件です。カテゴリや正解ラベルを座標計算には使用していません。
-
-このマップはAIのカテゴリ分類を可視化したものです。UMAPの軸に固有の意味はなく、30件での80%は未知データの精度を保証しません。
-
-### Windows PowerShell / VS Codeでの再生成
-
-VS Codeでプロジェクトを開き、プロジェクト直下のPowerShellターミナルで実行します。既存の分類結果を再利用するため、RDS接続やBedrock呼び出しは不要です。
-
-```powershell
-.\.venv\Scripts\python.exe .\src\visualize_bedrock_classification.py
-```
-
-MatplotlibとWindowsのメイリオを使用し、2400×1350ピクセル（16:9）のPNGを `output/bedrock_classification_map.png` に保存します。入力ログのID欠落・重複・カテゴリ不整合、30件/24正解からの変化はエラーとして扱います。
-
-### 分類に関するファイル
-
-- `src/bedrock_classifier.py`: RDSの議事録をNova Microで分類し、`ai_category`へ保存
-- `output/bedrock_classification_result.txt`: 既存の予測と評価結果
-- `src/visualize_bedrock_classification.py`: 保存ログからカテゴリマップを生成
-- `output/bedrock_classification_map.png`: 日本語の分類結果マップ
-
-`bedrock_classifier.py` は再実行するとBedrockを呼び出してDBの予測を更新します。マップの再生成には可視化スクリプトのみを実行します。
+**分類精度：** Accuracy 80.0%
