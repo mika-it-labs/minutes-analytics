@@ -255,122 +255,44 @@ python3 src/analysis.py
 
 ## Amazon Bedrockによる議事録自動分類
 
-教師なしクラスタリングに加えて、Amazon Bedrockを使用した
-LLMベースの日本語議事録分類を実装しました。
-
-### Architecture
+Amazon Bedrock / Amazon Nova Microで、議事録30件を「AWS/インフラ」「AI/分析」「セキュリティ」の3カテゴリへ分類しました。入力はタイトルと本文で、人手の正解ラベルは評価のみに使用します。
 
 ```text
-RDS PostgreSQL
-      │
-      │ title + content
-      ▼
-EC2 / Python / boto3
-      │
-      ▼
-Amazon Bedrock
-      │
-      ▼
-APAC Nova Micro
-      │
-      ▼
-ai_category
-      │
-      ▼
-人手ラベル category と比較
-
----
-
-## Amazon Bedrockによる意味ベースクラスタリング
-
-従来の `TF-IDF + UMAP + HDBSCAN` による教師なしクラスタリングに加えて、Amazon Bedrock / Nova Microを使用した意味ベースのクラスタリングを実装しました。
-
-### 処理フロー
-
-```text
-RDS PostgreSQL
-日本語議事録 30件
-      │
-      ├─────────────────────┐
-      ▼                     ▼
-TF-IDF + UMAP          Amazon Bedrock
-      │                 Nova Micro
-      ▼                     │
-   HDBSCAN                  ▼
-      │              Semantic Clustering
-      └──────────┬──────────┘
-                 ▼
-             ARI / NMI
+RDS PostgreSQL → Python / boto3 → Amazon Bedrock / Nova Micro → 予測カテゴリ
+議事録本文 → SudachiPy → TF-IDF → UMAP → 点の位置
+保存済みNova Micro予測 → 点の色
 ```
 
-### Bedrockへの入力
+![議事録カテゴリマップ](output/bedrock_classification_map.png)
 
-Bedrockには人手で設定した正解ラベル `category` を渡していません。
+| 評価 | 結果 |
+|---|---:|
+| 議事録数 | 30 |
+| 正解数 | 24 / 30 |
+| Accuracy | 80.00% |
+| AWS/インフラへの予測 | 4件 |
+| AI/分析への予測 | 10件 |
+| セキュリティへの予測 | 16件 |
 
-クラスタリングに使用した情報は各議事録の `title` と `content` のみです。また、事前定義されたカテゴリやクラスタ数も指定せず、文章の意味・テーマ・内容の類似性からグループを生成させました。
+点の位置は既存の `analysis_result.txt` に保存されたTF-IDF＋UMAP座標（小数3桁）、色は `bedrock_classification_result.txt` の実際のAI予測です。議事録IDで30件を照合し、人手ラベルと評価結果の一致を確認して生成します。赤い外枠は誤分類の6件です。カテゴリや正解ラベルを座標計算には使用していません。
 
-### Semantic Clustering Result
+このマップはAIのカテゴリ分類を可視化したものです。UMAPの軸に固有の意味はなく、30件での80%は未知データの精度を保証しません。
 
-| Cluster | Bedrockが生成したクラスタ名 | Documents |
-|---|---|---:|
-| 1 | AWSインフラ設計 | 10 |
-| 2 | 自然言語処理 | 10 |
-| 3 | セキュリティ設計 | 10 |
+### Windows PowerShell / VS Codeでの再生成
 
-30件すべてが1つのクラスタに所属し、欠落・重複はありませんでした。
+VS Codeでプロジェクトを開き、プロジェクト直下のPowerShellターミナルで実行します。既存の分類結果を再利用するため、RDS接続やBedrock呼び出しは不要です。
 
-### Bedrock Semantic Clustering Visualization
-
-Amazon Bedrock / Nova Microが生成した意味ベースのクラスタリング結果です。
-
-![Amazon Bedrock Semantic Clustering](output/bedrock_clustering_result.png)
-
-### Evaluation
-
-人手で設定した評価用カテゴリとのグループ構造の一致度をARI/NMIで評価しました。
-
-```text
-Documents : 30
-Clusters  : 3
-ARI       : 1.0000
-NMI       : 1.0000
-Agreement : 30/30 (100.00%)
+```powershell
+.\.venv\Scripts\python.exe .\src\visualize_bedrock_classification.py
 ```
 
-今回の30件の評価データでは、Bedrockが生成したクラスタ構造と人手によるグループ構造が完全に一致しました。
+MatplotlibとWindowsのメイリオを使用し、2400×1350ピクセル（16:9）のPNGを `output/bedrock_classification_map.png` に保存します。入力ログのID欠落・重複・カテゴリ不整合、30件/24正解からの変化はエラーとして扱います。
 
-この結果は今回使用した小規模な評価データに対する結果であり、未知データに対する一般的な精度100%を意味するものではありません。
+### 分類に関するファイル
 
-### HDBSCANとの比較
+- `src/bedrock_classifier.py`: RDSの議事録をNova Microで分類し、`ai_category`へ保存
+- `output/bedrock_classification_result.txt`: 既存の予測と評価結果
+- `src/visualize_bedrock_classification.py`: 保存ログからカテゴリマップを生成
+- `output/bedrock_classification_map.png`: 日本語の分類結果マップ
 
-| Method | ARI | NMI |
-|---|---:|---:|
-| TF-IDF + UMAP + HDBSCAN | 0.4493 | 0.6184 |
-| Amazon Bedrock / Nova Micro | **1.0000** | **1.0000** |
-
-### Clustering Evaluation Visualization
-
-従来型の `TF-IDF + UMAP + HDBSCAN` と、Amazon Bedrock / Nova Microによる意味ベースクラスタリングのARI/NMIを比較しました。
-
-![Clustering Evaluation Comparison](output/clustering_comparison.png)
-
-### 3つの分析アプローチ
-
-| Approach | Method | Result |
-|---|---|---|
-| 教師なしクラスタリング | TF-IDF + UMAP + HDBSCAN | ARI 0.4493 / NMI 0.6184 |
-| LLMカテゴリ分類 | Amazon Bedrock / Nova Micro | Accuracy 80.00% |
-| LLM意味ベースクラスタリング | Amazon Bedrock / Nova Micro | ARI 1.0000 / NMI 1.0000 |
-
-従来型の機械学習によるクラスタリング、LLMによるカテゴリ分類、LLMによる意味ベースクラスタリングを同一データセット上で実装・比較しました。
-
-### Bedrock Clustering Files
-
-```text
-src/bedrock_clustering.py
-src/evaluate_bedrock_clustering.py
-
-output/bedrock_clustering_result.json
-output/bedrock_clustering_result.txt
-output/bedrock_clustering_evaluation.txt
-```
+`bedrock_classifier.py` は再実行するとBedrockを呼び出してDBの予測を更新します。マップの再生成には可視化スクリプトのみを実行します。
