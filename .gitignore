@@ -1,18 +1,25 @@
+
 # Python
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
 
-# Environment / secrets
+# Credentials / environment
 .env
+.env.*
+!.env.example
 *.pem
 *.key
 
-# Data generated locally
+# Local data
 data/*.csv
 data/*.json
 
-# VS Code
+# Local backups
+README.backup.md
+
+# Editor
 .vscode/
 
 # OS
